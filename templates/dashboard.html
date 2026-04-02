@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Edge Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0b1736;
+            color: #f9fafb;
+            margin: 0;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1, h2 {
+            margin-top: 0;
+        }
+
+        .card {
+            background: #1f2d44;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .label {
+            color: #cbd5e1;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .alert-box {
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .alert-active {
+            background: #7f1d1d;
+            color: #fecaca;
+            border: 2px solid #ef4444;
+        }
+
+        .alert-clear {
+            background: #166534;
+            color: #dcfce7;
+            border: 2px solid #22c55e;
+        }
+
+        .output-on {
+            color: #fecaca;
+        }
+
+        .output-off {
+            color: #dcfce7;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        em {
+            color: #cbd5e1;
+        }
+
+        .empty {
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bus Edge Dashboard</h1>
+
+        <!-- ========================= -->
+        <!-- ALERT STATUS SECTION -->
+        <!-- ========================= -->
+        <div
+            id="alertBox"
+            class="alert-box {% if alert_active %}alert-active{% else %}alert-clear{% endif %}"
+        >
+            <span id="alertMessage">
+                {% if alert_active %}
+                    🚨 ACTIVE ALERT: {{ alert_message }}
+                {% else %}
+                    ✅ {{ alert_message }}
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- ========================= -->
+        <!-- DEVICE STATUS SECTION -->
+        <!-- ========================= -->
+        <div class="card">
+            <div class="grid">
+                <div>
+                    <div class="label">Device Name</div>
+                    <div class="value">{{ device_name }}</div>
+                </div>
+                <div>
+                    <div class="label">GPS Status</div>
+                    <div class="value">{{ gps_status }}</div>
+                </div>
+                <div>
+                    <div class="label">Last Event</div>
+                    <div class="value">{{ last_event }}</div>
+                </div>
+                <div>
+                    <div class="label">Output Status</div>
+                    <div
+                        id="outputMessage"
+                        class="value {% if output_active %}output-on{% else %}output-off{% endif %}"
+                    >
+                        {{ output_message }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================= -->
+        <!-- ADD GEOFENCE SECTION -->
+        <!-- ========================= -->
+        <div class="card">
+            <h2>Add Geofence (Low Bridge)</h2>
+            <form method="post" action="/add-geofence">
+                <input name="name" placeholder="Name (Main St Bridge)" required>
+                <input name="lat" placeholder="Latitude (40.7420)" required>
+                <input name="lon" placeholder="Longitude (-84.1052)" required>
+                <input name="radius" placeholder="Radius (meters)" required>
+                <input name="note" placeholder="Bridge height / notes (11'6&quot;)">
+                <button type="submit">Save Geofence</button>
+            </form>
+        </div>
+
+        <!-- ========================= -->
+        <!-- SAVED GEOFENCES SECTION -->
+        <!-- ========================= -->
+        <div class="card">
+            <h2>Saved Geofences</h2>
+            {% if geofences %}
+                <ul>
+                    {% for g in geofences %}
+                        <li>
+                            <strong>{{ g["name"] }}</strong><br>
+                            {{ g["lat"] }}, {{ g["lon"] }} — {{ g["radius"] }}m<br>
+                            {% if g["note"] %}
+                                <em>{{ g["note"] }}</em>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty">No geofences yet.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // =========================
+        // ALERT STATUS LIVE UPDATE
+        // =========================
+        async function refreshAlertStatus() {
+            try {
+                const response = await fetch("/alert-status");
+                const data = await response.json();
+
+                const alertBox = document.getElementById("alertBox");
+                const alertMessage = document.getElementById("alertMessage");
+
+                if (data.active) {
+                    alertBox.classList.remove("alert-clear");
+                    alertBox.classList.add("alert-active");
+                    alertMessage.textContent = "🚨 ACTIVE ALERT: " + data.message;
+                } else {
+                    alertBox.classList.remove("alert-active");
+                    alertBox.classList.add("alert-clear");
+                    alertMessage.textContent = "✅ " + data.message;
+                }
+            } catch (error) {
+                console.error("Failed to refresh alert status:", error);
+            }
+        }
+
+        // =========================
+        // OUTPUT STATUS LIVE UPDATE
+        // =========================
+        async function refreshOutputStatus() {
+            try {
+                const response = await fetch("/output-status");
+                const data = await response.json();
+
+                const outputMessage = document.getElementById("outputMessage");
+
+                outputMessage.textContent = data.message;
+
+                if (data.active) {
+                    outputMessage.classList.remove("output-off");
+                    outputMessage.classList.add("output-on");
+                } else {
+                    outputMessage.classList.remove("output-on");
+                    outputMessage.classList.add("output-off");
+                }
+            } catch (error) {
+                console.error("Failed to refresh output status:", error);
+            }
+        }
+
+        setInterval(refreshAlertStatus, 2000);
+        setInterval(refreshOutputStatus, 2000);
+    </script>
+</body>
+</html>

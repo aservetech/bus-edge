@@ -1,0 +1,6 @@
+flask
+RPi.GPIO
+gpiozero
+pyserial
+geopy
+gpsd-py3
