@@ -1,0 +1,10 @@
+venv/
+venv_test/
+__pycache__/
+*.pyc
+
+data/*.csv
+data/*.json
+
+static/captures/
+*.jpg
