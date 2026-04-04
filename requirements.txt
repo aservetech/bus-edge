@@ -4,3 +4,6 @@ gpiozero
 pyserial
 geopy
 gpsd-py3
+fastapi
+uvicorn
+python-multipart
