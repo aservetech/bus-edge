@@ -21,6 +21,7 @@ app = FastAPI()
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = PROJECT_DIR / "templates"
 DATA_DIR = PROJECT_DIR / "data"
+GEOFENCE_FILE = DATA_DIR / "geofences.json"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -30,7 +31,7 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 # =========================
 # SERVICES
 # =========================
-store = GeofenceStore(file_path=str(DATA_DIR / "geofences.json"))
+store = GeofenceStore(file_path=str(GEOFENCE_FILE))
 alert_store = AlertStore(file_path=str(DATA_DIR / "alert_status.json"))
 gps_status_store = GPSStatusStore(file_path=str(DATA_DIR / "gps_status.json"))
 
@@ -96,6 +97,23 @@ async def add_geofence(request: Request):
     }
 
     store.add(geofence)
+    return RedirectResponse(url="/", status_code=303)
+
+
+# =========================
+# DELETE GEOFENCE
+# =========================
+@app.post("/delete-geofence")
+async def delete_geofence(request: Request):
+    form = await request.form()
+    name = form.get("name", "").strip()
+
+    geofences = store.get_all()
+    updated_geofences = [g for g in geofences if g.get("name", "").strip() != name]
+
+    with open(GEOFENCE_FILE, "w") as f:
+        json.dump(updated_geofences, f, indent=2)
+
     return RedirectResponse(url="/", status_code=303)
 
 

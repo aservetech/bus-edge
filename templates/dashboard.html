@@ -89,6 +89,17 @@
             background: #1d4ed8;
         }
 
+        .delete-btn {
+            background: #dc2626;
+            padding: 8px 12px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .delete-btn:hover {
+            background: #b91c1c;
+        }
+
         input {
             width: 100%;
             box-sizing: border-box;
@@ -105,7 +116,7 @@
         }
 
         li {
-            margin-bottom: 10px;
+            margin-bottom: 16px;
         }
 
         em {
@@ -114,6 +125,14 @@
 
         .empty {
             color: #cbd5e1;
+        }
+
+        .geofence-actions {
+            margin-top: 8px;
+        }
+
+        .inline-form {
+            display: inline;
         }
     </style>
 </head>
@@ -193,8 +212,21 @@
                             <strong>{{ g["name"] }}</strong><br>
                             {{ g["lat"] }}, {{ g["lon"] }} — {{ g["radius"] }}m<br>
                             {% if g["note"] %}
-                                <em>{{ g["note"] }}</em>
+                                <em>{{ g["note"] }}</em><br>
                             {% endif %}
+
+                            <div class="geofence-actions">
+                                <form method="post" action="/delete-geofence" class="inline-form">
+                                    <input type="hidden" name="name" value="{{ g['name'] }}">
+                                    <button
+                                        type="submit"
+                                        class="delete-btn"
+                                        onclick="return confirm('Delete geofence: {{ g['name'] }}?');"
+                                    >
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
                         </li>
                     {% endfor %}
                 </ul>
