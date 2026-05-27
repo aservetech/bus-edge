@@ -116,6 +116,35 @@ async def delete_geofence(request: Request):
 
     return RedirectResponse(url="/", status_code=303)
 
+# =========================
+# EDIT GEOFENCE
+# =========================
+@app.post("/edit-geofence")
+async def edit_geofence(request: Request):
+    form = await request.form()
+
+    original_name = form.get("original_name", "").strip()
+
+    updated_geofence = {
+        "name": form.get("name", "").strip(),
+        "lat": float(form.get("lat")),
+        "lon": float(form.get("lon")),
+        "radius": int(form.get("radius")),
+        "note": form.get("note", "").strip(),
+    }
+
+    geofences = store.get_all()
+
+    for i, g in enumerate(geofences):
+        if g.get("name", "").strip() == original_name:
+            geofences[i] = updated_geofence
+            break
+
+    with open(GEOFENCE_FILE, "w") as f:
+        json.dump(geofences, f, indent=2)
+
+    return RedirectResponse(url="/", status_code=303)
+
 
 # =========================
 # LIVE ALERT ENDPOINT
