@@ -1,6 +1,3 @@
-# =========================
-# IMPORTS
-# =========================
 import json
 from pathlib import Path
 
@@ -13,33 +10,22 @@ from app.services.alert_store import AlertStore
 from app.services.gps_status_store import GPSStatusStore
 
 
-# =========================
-# APP SETUP
-# =========================
 app = FastAPI()
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+PROJECT_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = PROJECT_DIR / "templates"
 DATA_DIR = PROJECT_DIR / "data"
 GEOFENCE_FILE = DATA_DIR / "geofences.json"
+OUTPUT_STATUS_FILE = DATA_DIR / "output_status.json"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-
-# =========================
-# SERVICES
-# =========================
 store = GeofenceStore(file_path=str(GEOFENCE_FILE))
 alert_store = AlertStore(file_path=str(DATA_DIR / "alert_status.json"))
 gps_status_store = GPSStatusStore(file_path=str(DATA_DIR / "gps_status.json"))
-
-
-# =========================
-# OUTPUT STATUS READER
-# =========================
-OUTPUT_STATUS_FILE = DATA_DIR / "output_status.json"
 
 
 def get_output_status():
@@ -53,9 +39,11 @@ def get_output_status():
         return json.load(f)
 
 
-# =========================
-# DASHBOARD
-# =========================
+def save_geofences(geofences):
+    with open(GEOFENCE_FILE, "w") as f:
+        json.dump(geofences, f, indent=2)
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
     geofences = store.get_all()
@@ -64,74 +52,79 @@ def dashboard(request: Request):
     gps_status = gps_status_store.get_status()
 
     return templates.TemplateResponse(
-        request,
         "dashboard.html",
         {
+            "request": request,
             "geofences": geofences,
             "device_name": "ai-bot",
-            "gps_status": gps_status["message"],
-            "gps_lat": gps_status["lat"],
-            "gps_lon": gps_status["lon"],
+            "gps_status": gps_status.get("message", "Waiting for GPS fix"),
+            "gps_lat": gps_status.get("lat"),
+            "gps_lon": gps_status.get("lon"),
             "last_event": "Monitoring geofences",
-            "alert_active": alert_status["active"],
-            "alert_message": alert_status["message"],
-            "output_active": output_status["active"],
-            "output_message": output_status["message"],
+            "alert_active": alert_status.get("active", False),
+            "alert_message": alert_status.get("message", "No active alerts"),
+            "output_active": output_status.get("active", False),
+            "output_message": output_status.get("message", "Output OFF"),
         },
     )
 
 
-# =========================
-# ADD GEOFENCE
-# =========================
 @app.post("/add-geofence")
 async def add_geofence(request: Request):
     form = await request.form()
 
-    geofence = {
-        "name": form.get("name", "").strip(),
-        "lat": float(form.get("lat")),
-        "lon": float(form.get("lon")),
-        "radius": int(form.get("radius")),
-        "note": form.get("note", "").strip(),
-    }
+    try:
+        geofence = {
+            "name": form.get("name", "").strip(),
+            "lat": float(form.get("lat")),
+            "lon": float(form.get("lon")),
+            "radius": int(float(form.get("radius"))),
+            "note": form.get("note", "").strip(),
+        }
+    except ValueError:
+        return HTMLResponse(
+            "Invalid geofence. Latitude, longitude, and radius must be numbers.",
+            status_code=400,
+        )
 
     store.add(geofence)
     return RedirectResponse(url="/", status_code=303)
 
 
-# =========================
-# DELETE GEOFENCE
-# =========================
 @app.post("/delete-geofence")
 async def delete_geofence(request: Request):
     form = await request.form()
     name = form.get("name", "").strip()
 
     geofences = store.get_all()
-    updated_geofences = [g for g in geofences if g.get("name", "").strip() != name]
+    updated_geofences = [
+        g for g in geofences
+        if g.get("name", "").strip() != name
+    ]
 
-    with open(GEOFENCE_FILE, "w") as f:
-        json.dump(updated_geofences, f, indent=2)
+    save_geofences(updated_geofences)
 
     return RedirectResponse(url="/", status_code=303)
 
-# =========================
-# EDIT GEOFENCE
-# =========================
+
 @app.post("/edit-geofence")
 async def edit_geofence(request: Request):
     form = await request.form()
-
     original_name = form.get("original_name", "").strip()
 
-    updated_geofence = {
-        "name": form.get("name", "").strip(),
-        "lat": float(form.get("lat")),
-        "lon": float(form.get("lon")),
-        "radius": int(form.get("radius")),
-        "note": form.get("note", "").strip(),
-    }
+    try:
+        updated_geofence = {
+            "name": form.get("name", "").strip(),
+            "lat": float(form.get("lat")),
+            "lon": float(form.get("lon")),
+            "radius": int(float(form.get("radius"))),
+            "note": form.get("note", "").strip(),
+        }
+    except ValueError:
+        return HTMLResponse(
+            "Invalid geofence. Latitude, longitude, and radius must be numbers.",
+            status_code=400,
+        )
 
     geofences = store.get_all()
 
@@ -140,31 +133,21 @@ async def edit_geofence(request: Request):
             geofences[i] = updated_geofence
             break
 
-    with open(GEOFENCE_FILE, "w") as f:
-        json.dump(geofences, f, indent=2)
+    save_geofences(geofences)
 
     return RedirectResponse(url="/", status_code=303)
 
 
-# =========================
-# LIVE ALERT ENDPOINT
-# =========================
 @app.get("/alert-status")
 def alert_status_endpoint():
     return alert_store.get_status()
 
 
-# =========================
-# LIVE OUTPUT ENDPOINT
-# =========================
 @app.get("/output-status")
 def output_status_endpoint():
     return get_output_status()
 
 
-# =========================
-# LIVE GPS STATUS ENDPOINT
-# =========================
 @app.get("/gps-status")
 def gps_status_endpoint():
     return gps_status_store.get_status()
