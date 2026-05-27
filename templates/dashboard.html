@@ -52,7 +52,6 @@
             margin-bottom: 20px;
             font-size: 18px;
             font-weight: bold;
-            transition: all 0.2s ease-in-out;
         }
 
         .alert-active {
@@ -83,6 +82,7 @@
             border-radius: 8px;
             font-size: 16px;
             cursor: pointer;
+            margin-right: 8px;
         }
 
         button:hover {
@@ -91,9 +91,6 @@
 
         .delete-btn {
             background: #dc2626;
-            padding: 8px 12px;
-            font-size: 14px;
-            margin-top: 10px;
         }
 
         .delete-btn:hover {
@@ -111,16 +108,16 @@
         }
 
         ul {
-            padding-left: 18px;
+            padding-left: 0;
             margin: 0;
+            list-style: none;
         }
 
         li {
+            background: #162238;
+            border-radius: 10px;
+            padding: 14px;
             margin-bottom: 16px;
-        }
-
-        em {
-            color: #cbd5e1;
         }
 
         .empty {
@@ -140,9 +137,6 @@
     <div class="container">
         <h1>Bus Edge Dashboard</h1>
 
-        <!-- ========================= -->
-        <!-- ALERT STATUS SECTION -->
-        <!-- ========================= -->
         <div
             id="alertBox"
             class="alert-box {% if alert_active %}alert-active{% else %}alert-clear{% endif %}"
@@ -156,9 +150,6 @@
             </span>
         </div>
 
-        <!-- ========================= -->
-        <!-- DEVICE STATUS SECTION -->
-        <!-- ========================= -->
         <div class="card">
             <div class="grid">
                 <div>
@@ -185,9 +176,6 @@
             </div>
         </div>
 
-        <!-- ========================= -->
-        <!-- ADD GEOFENCE SECTION -->
-        <!-- ========================= -->
         <div class="card">
             <h2>Add Geofence (Low Bridge)</h2>
             <form method="post" action="/add-geofence">
@@ -200,20 +188,24 @@
             </form>
         </div>
 
-        <!-- ========================= -->
-        <!-- SAVED GEOFENCES SECTION -->
-        <!-- ========================= -->
         <div class="card">
             <h2>Saved Geofences</h2>
+
             {% if geofences %}
                 <ul>
                     {% for g in geofences %}
                         <li>
-                            <strong>{{ g["name"] }}</strong><br>
-                            {{ g["lat"] }}, {{ g["lon"] }} — {{ g["radius"] }}m<br>
-                            {% if g["note"] %}
-                                <em>{{ g["note"] }}</em><br>
-                            {% endif %}
+                            <form method="post" action="/edit-geofence">
+                                <input type="hidden" name="original_name" value="{{ g['name'] }}">
+
+                                <input name="name" value="{{ g['name'] }}" required>
+                                <input name="lat" value="{{ g['lat'] }}" required>
+                                <input name="lon" value="{{ g['lon'] }}" required>
+                                <input name="radius" value="{{ g['radius'] }}" required>
+                                <input name="note" value="{{ g['note'] }}">
+
+                                <button type="submit">Save Changes</button>
+                            </form>
 
                             <div class="geofence-actions">
                                 <form method="post" action="/delete-geofence" class="inline-form">
@@ -237,9 +229,6 @@
     </div>
 
     <script>
-        // =========================
-        // ALERT STATUS LIVE UPDATE
-        // =========================
         async function refreshAlertStatus() {
             try {
                 const response = await fetch("/alert-status");
@@ -262,9 +251,6 @@
             }
         }
 
-        // =========================
-        // OUTPUT STATUS LIVE UPDATE
-        // =========================
         async function refreshOutputStatus() {
             try {
                 const response = await fetch("/output-status");
